@@ -19,17 +19,24 @@ class Parameter(object):
     userMeta: dict
     predefinedMeta: str
 
-class Storage:
+class Storage2:
     TIEFBLUE_HEADER_KEY = 'X-Storage-Param'
 
     def __init__(
             self,
-            base_url: str = "https://tiefblue.dp.tech",
+            base_url: str="",
             client: Client = None,
+            app_key: str="",
+            tag_name: str=""
         ) -> None:
-        
         self.host = base_url
+        assert self.host != ""
         self.client = client
+        assert self.client is not None
+        self.app_key = app_key
+        assert self.app_key != ""
+        self.tag_name = tag_name
+        assert self.tag_name != ""
 
     def encode_base64(
             self, 
@@ -42,57 +49,46 @@ class Storage:
             self, 
             object_key: str = "", 
             data: str = "" , 
-            parameter: dict = {}, 
         ) -> dict:
-
-        param = {
-            "path": object_key,
-            'option': parameter
-        }
-
-        if parameter:
-            param["option"] = parameter.__dict__
-        headers = {}
-        headers[self.TIEFBLUE_HEADER_KEY] = self.encode_base64(param)
-        req = self.client.post(url="/api/upload/binary", host=self.host, headers=headers, data=data)
-        return req
+        return self.client.put(
+            url  =f"/api/v2/file/{self.app_key}/{self.tag_name}/{object_key}",
+            host =self.host,
+            data =data)
     
     def read(
             self,
             object_key: str = "",
-            token: str = "",
         ) -> None:
-
-        url = f"/api/download/{object_key}"
-        self.client.token = token
+        url = f"/api/v2/file/{self.app_key}/{self.tag_name}/{object_key}"
         res = self.client.get(url=url, host=self.host, stream=True)
+        return res
+    
+    def iterate(
+            self,
+            object_key: str = "",    
+        ):
+        url = f"/api/v2/iterate/{self.app_key}/{self.tag_name}/{object_key}"
+        res = self.client.get(url=url, host=self.host)
         return res
     
     def upload_from_file(
             self,
             object_key: str = "",
             file_path: str = "",
-            parameter: dict = None
-        ) -> None:
+        ) -> dict:
         if not os.path.exists(file_path):
             raise FileNotFoundError
+
         if os.path.isdir(file_path):
             raise IsADirectoryError
-        _, disposition = os.path.split(file_path)
-        if parameter is None:
-            parameter = Parameter()
-        parameter.contentDisposition = f'attachment; filename="{disposition}"'
+        
         with open(file_path, 'rb') as fp:
-            res = self.write(object_key=object_key, data=fp.read(), parameter=parameter)
-            return res
+            return self.write(object_key=object_key, data=fp.read())
     
-    def init_upload_by_part(self, object_key: str, parameter=None):
-        data = {
-            'path': object_key
-        }
-        if parameter is not None:
-            data['option'] = parameter.__dict__
-        url = f"/api/upload/multipart/init"
+    def init_upload_by_part(self, object_key: str, parameter: Parameter):
+        data = {}
+        data['option'] = parameter.__dict__
+        url = f"/api/v2/multipart/init/{self.app_key}/{self.tag_name}/{object_key}"
         return self.client.post(url=url, host=self.host, json=data)
     
     def upload_by_part(self, object_key: str, initial_key: str, chunk_size: int, number: int, body):
@@ -100,12 +96,11 @@ class Storage:
             'initialKey': initial_key,
             'number': number,
             'partSize': chunk_size,
-            'objectKey': object_key
         }
         headers = {}
         headers[self.TIEFBLUE_HEADER_KEY] = self._dump_parameter(param)
-        url = f"/api/upload/multipart/upload"
-        resp = self.client.post(url=url, host=self.host, data=body, headers=headers)
+        url = f"/api/v2/multipart/upload/{self.app_key}/{self.tag_name}/{object_key}"
+        resp = self.client.put(url=url, host=self.host, data=body, headers=headers)
         return resp
 
     def complete_upload_by_part(self, object_key, initial_key, part_string):
@@ -114,7 +109,7 @@ class Storage:
             'initialKey': initial_key,
             'partString': part_string
         }
-        url = f"/api/upload/multipart/complete"
+        url = f"/api/v2/multipart/complete/{self.app_key}/{self.tag_name}/{object_key}"
         resp = self.client.post(url=url, host=self.host, json=data)
         return resp
     

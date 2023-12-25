@@ -42,7 +42,6 @@ def test_job():
     print(object_key)
     res = s.upload_From_file_multi_part(object_key=object_key, file_path=file_path,  token=token, progress_bar=True)
     #res = s.upload_from_file(object_key=object_key, file_path=file_path, token=token)
-    # s.download_from_file()
 
     #res = s.read(object_key=res["path"], token=token)
     #print(res)

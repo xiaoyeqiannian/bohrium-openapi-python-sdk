@@ -14,34 +14,39 @@ class Client:
             config_file_location_v2: str ='~/.brmconfig',
             host: str = os.getenv("OPENAPI_HOST", "https://openapi.dp.tech"),
             ticket: str = os.getenv("BHOR_TICKET", ""),
-            access_key: str = os.getenv("BHOR_AK", "")
+            access_key: str = os.getenv("BHOR_AK", ""),
+            secret: bool = True
         ) -> None:
 
         self.host = host
         self.config_file_location_expand = os.path.expanduser(config_file_location_v2)
         self.ticket = ticket
         self.access_key = access_key
-        if not any([os.path.exists(self.config_file_location_expand), self.ticket, self.access_key]):
-            weburl = self.host.replace("openapi", "bohrium")
-            print(f"Config File ~/.brmconfig not found! Please visit {weburl}/personal/setting and click AccessKey create button to generate it !")
-            self.access_key = input("Please enter AccessKey: ")
-            data = f"[Credentials]\naccessKey={self.access_key}"
-            with open(self.config_file_location_expand, 'w') as f:
-                f.write(data)
-        config = configparser.ConfigParser()
-        config.read(self.config_file_location_expand)
-        if not self.access_key:
-            self.access_key = config.get('Credentials', 'accessKey')
-        self.params = {"accessKey": self.access_key}
         self.token = ""
-        self.check_ak()
-            
+        self.params = {}
+        if secret:
+            if not any([os.path.exists(self.config_file_location_expand), self.ticket, self.access_key]):
+                weburl = self.host.replace("openapi", "bohrium")
+                print(f"Config File ~/.brmconfig not found! Please visit {weburl}/personal/setting and click AccessKey create button to generate it !")
+                self.access_key = input("Please enter AccessKey: ")
+                data = f"[Credentials]\naccessKey={self.access_key}"
+                with open(self.config_file_location_expand, 'w') as f:
+                    f.write(data)
+            config = configparser.ConfigParser()
+            config.read(self.config_file_location_expand)
+            if not self.access_key:
+                self.access_key = config.get('Credentials', 'accessKey')
+            self.params['accessKey'] = self.access_key
+            self.check_ak()
 
     def post(self, url, host="", json=None, data=None, headers=None, params=None, stream=False, retry=5):
         return self._req('POST', url, host=host, json=json, data=data, headers=headers, params=params, stream=stream, retry=retry)
 
     def get(self, url, host="", json=None, headers=None, params=None, stream=False, retry=5):
         return self._req('GET', url, host=host, json=json, headers=headers, params=params, stream=stream, retry=retry)
+    
+    def put(self, url, host="", json=None, data=None, headers=None, params=None, stream=False, retry=5):
+        return self._req('PUT', url, host=host, json=json, data=data, headers=headers, params=params, stream=stream, retry=retry)
 
     def _req(self, method, url, host="", json=None, data=None, headers=None, params=None, stream=False, retry=3):
         if host:
@@ -75,6 +80,10 @@ class Client:
                     print(f"Request {method} {url} failed params:{params} Json:{json}, retry {i+1} times, error: {resp.content}")
                 time.sleep(2)
                 continue
+            
+            if stream:
+                return resp.content
+            
             result = resp.json()
             if isinstance(result, str): return result
             if result.get('model', '') == 'gpt-35-turbo':
