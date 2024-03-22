@@ -64,9 +64,9 @@ class Client:
             resp = None
             err = ""
             if method == 'GET':
-                resp = requests.get(url=url, params=params, headers=headers, stream=stream)
+                resp = requests.get(url=url, params=params, headers=headers, stream=stream, verify=False)
             if method == 'POST':
-                resp = requests.post(url=url, json=json, data=data, params=params, headers=headers, stream=stream)
+                resp = requests.post(url=url, json=json, data=data, params=params, headers=headers, stream=stream, verify=False)
             resp_code = resp.status_code
             if resp_code == 401:
                 os.remove(self.config_file_location_expand)
